@@ -3,16 +3,16 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import httpx
 
-from .config import CONFIG_DIR
-
-CACHE_FILE = CONFIG_DIR / "models_cache.json"
+# Avoid circular import with config — define path locally
+_CONFIG_DIR = Path.home() / ".caliber"
+CACHE_FILE = _CONFIG_DIR / "models_cache.json"
 CACHE_TTL_SECONDS = 6 * 60 * 60  # 6 hours
 
-# Strong current defaults for "best" mode (real OpenRouter IDs as of late 2026)
+# Strong defaults for "best" mode
 BEST_DEFAULTS = {
     "planning": "anthropic/claude-fable-5.1",
     "reasoning": "openai/gpt-5.6-sol",
@@ -37,14 +37,13 @@ def _normalize(model: Dict[str, Any]) -> Dict[str, str]:
     name = model.get("name") or mid
     free = _is_free(model)
     note = "(free)" if free else ""
-    # also catch :free suffix models
     if mid.endswith(":free") or ":free" in mid:
         note = "(free)"
     return {"id": mid, "name": name, "note": note}
 
 def fetch_all_models(force: bool = False) -> List[Dict[str, str]]:
     """Fetch every model from OpenRouter. Cache for 6h."""
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    _CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
     if not force and CACHE_FILE.exists():
         try:
@@ -58,13 +57,11 @@ def fetch_all_models(force: bool = False) -> List[Dict[str, str]]:
     models: List[Dict[str, str]] = []
     try:
         with httpx.Client(timeout=30.0) as client:
-            # Full list (no auth required for public catalog)
             r = client.get("https://openrouter.ai/api/v1/models")
             r.raise_for_status()
             data = r.json().get("data", [])
 
             for m in data:
-                # Prefer text-capable chat models
                 arch = m.get("architecture") or {}
                 out_mods = arch.get("output_modalities") or ["text"]
                 if "text" not in out_mods and out_mods != []:
@@ -73,21 +70,18 @@ def fetch_all_models(force: bool = False) -> List[Dict[str, str]]:
                 if norm["id"]:
                     models.append(norm)
 
-            # Sort: free first, then by name
             models.sort(key=lambda x: (0 if x["note"] == "(free)" else 1, x["name"].lower()))
 
             with open(CACHE_FILE, "w", encoding="utf-8") as f:
                 json.dump({"ts": time.time(), "models": models}, f)
 
-    except Exception as e:
-        # Fallback to cache even if stale
+    except Exception:
         if CACHE_FILE.exists():
             try:
                 with open(CACHE_FILE, "r", encoding="utf-8") as f:
                     return json.load(f).get("models", [])
             except Exception:
                 pass
-        # Absolute last resort: small safe list
         return [
             {"id": "openai/gpt-5.6-luna", "name": "GPT-5.6 Luna", "note": ""},
             {"id": "anthropic/claude-fable-5.1", "name": "Claude Fable 5.1", "note": ""},
@@ -99,7 +93,6 @@ def fetch_all_models(force: bool = False) -> List[Dict[str, str]]:
     return models
 
 def search_models(query: str = "", limit: int = 50) -> List[Dict[str, str]]:
-    """Search / filter the full live catalog."""
     all_models = fetch_all_models()
     if not query:
         return all_models[:limit]
@@ -114,9 +107,7 @@ def search_models(query: str = "", limit: int = 50) -> List[Dict[str, str]]:
     return hits
 
 def list_models_for_task(task: str) -> List[Dict[str, str]]:
-    """Compatibility helper — returns a useful slice for the role + free models."""
     all_models = fetch_all_models()
-    # Prefer models that look relevant + free ones
     keywords = {
         "coding": ["code", "coder", "claude", "deepseek", "gpt", "qwen", "hy4", "glm"],
         "reasoning": ["o1", "o3", "reason", "r1", "fable", "sol", "pro"],
@@ -139,6 +130,4 @@ def list_models_for_task(task: str) -> List[Dict[str, str]]:
         scored.append((score, m))
 
     scored.sort(key=lambda x: -x[0])
-    # Return top relevant + some free ones
-    result = [m for _, m in scored[:40]]
-    return result
+    return [m for _, m in scored[:40]]
