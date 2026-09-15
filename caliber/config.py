@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from .models import BEST_DEFAULTS
+
 CONFIG_DIR = Path.home() / ".caliber"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 SESSIONS_DIR = CONFIG_DIR / "sessions"
@@ -12,24 +14,18 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "provider": "openrouter",
     "api_key": None,
     "effort": "medium",
-    "mode": "build",  # plan | build
-    "model_mode": "best",  # best | custom
+    "mode": "build",          # plan | build
+    "model_mode": "best",     # best | custom
     "custom_models": {
         "planning": "anthropic/claude-3.5-sonnet",
         "reasoning": "openai/o1-mini",
         "coding": "anthropic/claude-3.5-sonnet",
         "search": "perplexity/llama-3.1-sonar-large-128k-online",
         "writing": "anthropic/claude-3.5-sonnet",
+        "critique": "openai/o1-mini",
         "default": "openai/gpt-4o-mini",
     },
-    "best_models": {
-        "planning": "anthropic/claude-3.5-sonnet",
-        "reasoning": "openai/o1",
-        "coding": "anthropic/claude-3.5-sonnet",
-        "search": "perplexity/llama-3.1-sonar-large-128k-online",
-        "writing": "anthropic/claude-3.5-sonnet",
-        "default": "openai/gpt-4o",
-    },
+    "best_models": BEST_DEFAULTS.copy(),
 }
 
 def ensure_dirs() -> None:
@@ -43,9 +39,16 @@ def load_config() -> Dict[str, Any]:
         return DEFAULT_CONFIG.copy()
     with open(CONFIG_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
-    # merge defaults
     merged = DEFAULT_CONFIG.copy()
     merged.update(data)
+    # ensure nested dicts exist
+    for key in ("custom_models", "best_models"):
+        if key not in merged or not isinstance(merged[key], dict):
+            merged[key] = DEFAULT_CONFIG[key].copy()
+        else:
+            # fill missing specialist keys
+            for k, v in DEFAULT_CONFIG[key].items():
+                merged[key].setdefault(k, v)
     return merged
 
 def save_config(cfg: Dict[str, Any]) -> None:
