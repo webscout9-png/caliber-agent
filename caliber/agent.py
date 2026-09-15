@@ -16,7 +16,6 @@ from .tools import (
     get_cwd,
     set_cwd,
     tool_list_dir,
-    tool_read_file,
     tool_write_file,
 )
 
@@ -77,10 +76,12 @@ class CaliberAgent:
                 system_template=SYSTEM_PLAN,
             )
 
-        # BUILD: optional specialist planning pass on high+
         plan_note = ""
         if effort in ("high", "max", "ultra"):
-            plan_note = self._specialist_plan(user_input, project_ctx)
+            try:
+                plan_note = self._specialist_plan(user_input, project_ctx)
+            except Exception as e:
+                console.print(f"[yellow]Planning specialist skipped: {e}[/]")
 
         return self._agent_loop(
             user_input,
@@ -138,7 +139,6 @@ class CaliberAgent:
         extra_context: str = "",
     ) -> str:
         focus = classify_task(user_input)
-        # Multi-model edge: pick the best model for this focus
         model = get_model_for_task("coding" if focus == "coding" else focus)
 
         system = system_template.format(focus=focus, effort=effort, project_ctx=project_ctx)
@@ -160,7 +160,20 @@ class CaliberAgent:
                 transient=True,
             ) as progress:
                 progress.add_task("l", total=None)
-                result = chat_with_tools(model, messages, TOOL_SPECS, temperature=0.25)
+                try:
+                    result = chat_with_tools(model, messages, TOOL_SPECS, temperature=0.25)
+                except Exception as e:
+                    console.print(f"[red]Model error: {e}[/]")
+                    # last resort: plain chat without tools
+                    try:
+                        result = chat(model, [
+                            {"role": "system", "content": system},
+                            {"role": "user", "content": user_input},
+                        ])
+                        self._track(result, focus, model)
+                        return result["content"] or str(e)
+                    except Exception as e2:
+                        return f"Failed to complete request: {e2}"
 
             self._track(result, focus, model)
             tool_calls = result.get("tool_calls") or []
@@ -185,16 +198,21 @@ class CaliberAgent:
                     args = {}
                 short = json.dumps(args)[:90]
                 console.print(f"  [dim]→ {name}({short})[/]")
-                out = execute_tool(name, args, allow_write=allow_write, allow_bash=allow_bash)
+                try:
+                    out = execute_tool(name, args, allow_write=allow_write, allow_bash=allow_bash)
+                except Exception as te:
+                    out = f"Tool error: {te}"
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tc.get("id", "call"),
                     "content": out[:14000],
                 })
 
-        # Critique pass on max/ultra
         if effort in ("max", "ultra") and final_content and allow_write:
-            return self._critique(user_input, final_content)
+            try:
+                return self._critique(user_input, final_content)
+            except Exception as e:
+                console.print(f"[yellow]Critique skipped: {e}[/]")
 
         return final_content or "Done."
 
@@ -223,7 +241,6 @@ class CaliberAgent:
         """/init — create AGENTS.md like OpenCode."""
         model = get_model_for_task("planning")
         tree = tool_list_dir(".")
-        # sample a few key files if present
         samples = []
         for candidate in ["README.md", "package.json", "pyproject.toml", "Cargo.toml", "go.mod"]:
             p = get_cwd() / candidate
@@ -252,7 +269,6 @@ class CaliberAgent:
             res = chat(model, messages, temperature=0.3)
         self._track(res, "planning", model)
         content = res["content"].strip()
-        # strip markdown fences if any
         if content.startswith("```"):
             content = content.split("\n", 1)[-1]
             if content.endswith("```"):
