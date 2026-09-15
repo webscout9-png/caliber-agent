@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Optional
 
 import typer
 from prompt_toolkit import PromptSession
@@ -25,7 +23,7 @@ from .config import (
 )
 from .models import list_models_for_task
 
-app = typer.Typer(add_completion=False, help="Caliber Agent — multi-model OpenRouter terminal agent")
+app = typer.Typer(add_completion=False, help="Caliber Agent — specialized multi-model OpenRouter terminal agent")
 console = Console()
 
 BANNER = r"""
@@ -35,7 +33,7 @@ BANNER = r"""
  | |__| (_| | | | |_) |  __/ |    
   \____\__,_|_|_|_.__/ \___|_|    
                                    
-  Multi-model · OpenRouter · Terminal
+  Specialized multi-model · OpenRouter · Terminal
 """
 
 def print_banner() -> None:
@@ -50,7 +48,7 @@ def print_status_bar(agent: CaliberAgent) -> None:
     effort = cfg.get("effort", "medium")
     model_mode = cfg.get("model_mode", "best")
     bar = Text.assemble(
-        (" provider: openrouter ", "bold"),
+        (" openrouter ", "bold"),
         (f" key:{key_set} ", "green" if key_set == "✓" else "red"),
         (f" mode:{mode} ", "cyan"),
         (f" effort:{effort} ", "yellow"),
@@ -63,78 +61,93 @@ def cmd_help() -> None:
     table = Table(show_header=True, header_style="bold")
     table.add_column("Command")
     table.add_column("Description")
-    table.add_row("/provider", "Set OpenRouter API key")
-    table.add_row("/model", "Best (auto) or Custom model mapping")
+    table.add_row("/provider", "Set OpenRouter API key (only provider)")
+    table.add_row("/model", "Best (auto) or Custom specialist mapping")
     table.add_row("/effort", "low | medium | high | max | ultra")
     table.add_row("/plan", "Switch to Plan mode")
     table.add_row("/build", "Switch to Build mode")
-    table.add_row("/skills", "List available skills (extensible)")
-    table.add_row("/usage", "Show token usage")
+    table.add_row("/skills", "Skills system (extensible)")
+    table.add_row("/usage", "Token usage this session")
     table.add_row("/sessions", "List saved sessions")
-    table.add_row("/status", "Show current config")
-    table.add_row("/exit  or  /quit", "Exit Caliber")
+    table.add_row("/status", "Show current config + last trace")
+    table.add_row("/exit", "Quit")
     table.add_row("/help", "This help")
     console.print(table)
 
 def cmd_provider() -> None:
-    console.print("OpenRouter is the only supported provider (one key → many models).")
+    console.print("[bold]OpenRouter[/] is the only provider (one key → many specialist models).")
     key = console.input("[bold]Paste your OpenRouter API key: [/]").strip()
     if key:
         set_api_key(key)
-        console.print("[green]API key saved.[/]")
+        console.print("[green]API key saved to ~/.caliber/config.json[/]")
     else:
         console.print("[yellow]No key entered.[/]")
 
 def cmd_model() -> None:
     cfg = load_config()
-    console.print("1) Best  — Caliber picks the top model for each task type")
-    console.print("2) Custom — You choose models per task")
+    console.print("1) [bold]Best[/]  — Caliber picks the strongest model for each specialist role")
+    console.print("2) [bold]Custom[/] — You choose models per specialist role")
     choice = console.input("Choice [1/2]: ").strip()
     if choice == "1":
         cfg["model_mode"] = "best"
         save_config(cfg)
-        console.print("[green]Model mode set to Best.[/]")
+        console.print("[green]Model mode → Best[/]")
     elif choice == "2":
         cfg["model_mode"] = "custom"
-        console.print("Enter model IDs for each task (leave blank to keep current). Free models are marked (free) in the catalog.")
-        for task in ["planning", "reasoning", "coding", "search", "writing", "default"]:
+        console.print("\nEnter OpenRouter model IDs. Leave blank to keep current.")
+        console.print("Free models are marked [green](free)[/] in the lists below.\n")
+        for task in ["planning", "reasoning", "coding", "search", "writing", "critique", "default"]:
             current = cfg.get("custom_models", {}).get(task, "")
             models = list_models_for_task(task)
-            console.print(f"\n[bold]{task}[/] (current: {current})")
+            console.print(f"[bold cyan]{task}[/]  (current: {current or '—'})")
             for m in models:
-                note = f" {m['note']}" if m.get("note") else ""
-                console.print(f"  · {m['id']}{note}")
+                note = f" [green]{m['note']}[/]" if m.get("note") else ""
+                console.print(f"   · {m['id']}{note}")
             new = console.input(f"  New model for {task}: ").strip()
             if new:
                 cfg.setdefault("custom_models", {})[task] = new
         save_config(cfg)
-        console.print("[green]Custom models saved.[/]")
+        console.print("[green]Custom specialist mapping saved.[/]")
     else:
         console.print("[yellow]Cancelled.[/]")
 
 def cmd_effort() -> None:
     cfg = load_config()
-    console.print("Effort levels: low | medium | high | max | ultra")
-    val = console.input(f"Current: {cfg.get('effort')} → ").strip().lower()
+    console.print("Effort: [bold]low[/] | medium | high | max | [bold]ultra[/]")
+    console.print("  low   → single specialist call")
+    console.print("  medium→ plan + execute + light review")
+    console.print("  high  → LLM planner + richer pipeline")
+    console.print("  max   → full multi-specialist + synthesis")
+    console.print("  ultra → planner + search + multiple specialists + rigorous critique")
+    val = console.input(f"Current [{cfg.get('effort')}] → ").strip().lower()
     if val in ("low", "medium", "high", "max", "ultra"):
         cfg["effort"] = val
         save_config(cfg)
-        console.print(f"[green]Effort set to {val}.[/]")
+        console.print(f"[green]Effort set to {val}[/]")
     else:
-        console.print("[yellow]Invalid effort.[/]")
+        console.print("[yellow]Invalid effort level.[/]")
 
-def cmd_status() -> None:
+def cmd_status(agent: CaliberAgent) -> None:
     cfg = load_config()
-    table = Table(show_header=False)
+    table = Table(show_header=False, box=None)
     table.add_column("Key", style="bold")
     table.add_column("Value")
     for k in ["provider", "effort", "mode", "model_mode"]:
         table.add_row(k, str(cfg.get(k)))
-    table.add_row("api_key", "set" if cfg.get("api_key") else "not set")
-    console.print(Panel(table, title="Status"))
+    table.add_row("api_key", "set ✓" if cfg.get("api_key") else "not set ✗")
+    console.print(Panel(table, title="Config", border_style="dim"))
+
+    if agent.last_trace:
+        t = Table(title="Last run trace")
+        t.add_column("Specialist")
+        t.add_column("Model")
+        t.add_column("Tokens", justify="right")
+        for step in agent.last_trace:
+            t.add_row(step["task"], step["model"], str(step["tokens"]))
+        console.print(t)
 
 def cmd_usage(agent: CaliberAgent) -> None:
-    console.print(f"Session tokens used: [bold]{agent.total_tokens}[/]")
+    console.print(f"Session tokens: [bold]{agent.total_tokens}[/]")
 
 def cmd_sessions() -> None:
     SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
@@ -146,11 +159,12 @@ def cmd_sessions() -> None:
         console.print(f"  · {f.stem}")
 
 def cmd_skills() -> None:
-    console.print("Skills system is extensible. Built-in: task decomposition + model routing.")
-    console.print("Future: custom skills, tools, MCP, etc.")
+    console.print("[bold]Built-in specialists[/]")
+    console.print("  planning · reasoning · coding · search · writing · critique")
+    console.print("\nThe router + LLM planner already specialize every request.")
+    console.print("Future versions will support user-defined skills and tools.")
 
 def handle_command(cmd: str, agent: CaliberAgent) -> bool:
-    """Return True if should continue loop."""
     parts = cmd.strip().split(maxsplit=1)
     name = parts[0].lower()
 
@@ -169,12 +183,12 @@ def handle_command(cmd: str, agent: CaliberAgent) -> bool:
         cfg = load_config()
         cfg["mode"] = "plan"
         save_config(cfg)
-        console.print("[cyan]Switched to Plan mode.[/]")
+        console.print("[cyan]→ Plan mode[/]")
     elif name == "/build":
         cfg = load_config()
         cfg["mode"] = "build"
         save_config(cfg)
-        console.print("[green]Switched to Build mode.[/]")
+        console.print("[green]→ Build mode[/]")
     elif name == "/skills":
         cmd_skills()
     elif name == "/usage":
@@ -182,7 +196,7 @@ def handle_command(cmd: str, agent: CaliberAgent) -> bool:
     elif name == "/sessions":
         cmd_sessions()
     elif name == "/status":
-        cmd_status()
+        cmd_status(agent)
     else:
         console.print(f"[yellow]Unknown command: {name}. Try /help[/]")
     return True
@@ -218,7 +232,6 @@ def main(ctx: typer.Context) -> None:
                 break
             continue
 
-        # Normal request
         try:
             result = agent.run(user_input)
             console.print()

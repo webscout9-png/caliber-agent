@@ -33,8 +33,9 @@ def chat(
         "messages": messages,
         "temperature": temperature,
     }
-    if max_tokens:
+    if max_tokens is not None:
         kwargs["max_tokens"] = max_tokens
+
     resp = client.chat.completions.create(**kwargs)
     choice = resp.choices[0]
     usage = {
@@ -44,6 +45,6 @@ def chat(
     }
     return {
         "content": choice.message.content or "",
-        "model": resp.model,
+        "model": resp.model or model,
         "usage": usage,
     }
