@@ -1,23 +1,56 @@
 from __future__ import annotations
 
 import json
-import re
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from .config import load_config
 from .openrouter import chat, chat_with_tools
-from .router import classify_task, decompose, get_model_for_task
-from .tools import TOOL_SPECS, execute_tool, get_cwd, set_cwd, tool_list_dir, tool_read_file
+from .router import classify_task, get_model_for_task
+from .tools import (
+    TOOL_SPECS,
+    execute_tool,
+    get_cwd,
+    set_cwd,
+    tool_list_dir,
+    tool_read_file,
+    tool_write_file,
+)
 
 console = Console()
 
-class CaliberAgent:
-    """Top-class multi-model coding agent with specialist routing + tool loop."""
+SYSTEM_BUILD = """You are Caliber Agent in BUILD mode — a powerful coding agent.
 
+You have tools: list_dir, glob, read_file, write_file, edit, grep, bash, webfetch.
+
+Rules:
+- Explore with glob/grep/read before editing.
+- Prefer `edit` for precise changes; use `write_file` for new files.
+- Use bash for tests, installs, git — not for reading/writing files.
+- Be minimal and correct. Do not over-engineer.
+- When done, give a clear summary of what changed.
+
+Specialist focus: {focus}
+Effort: {effort}
+
+{project_ctx}
+"""
+
+SYSTEM_PLAN = """You are Caliber Agent in PLAN mode — read-only analysis.
+
+You can use: list_dir, glob, read_file, grep, webfetch.
+You CANNOT write files, edit, or run bash.
+
+Produce a clear plan: steps, files involved, risks, success criteria.
+Do not implement.
+
+{project_ctx}
+"""
+
+class CaliberAgent:
     def __init__(self) -> None:
         self.cfg = load_config()
         self.total_tokens = 0
@@ -32,124 +65,111 @@ class CaliberAgent:
         self.last_trace = []
         effort = self.cfg.get("effort", "medium")
         mode = self.cfg.get("mode", "build")
-
-        # Project context
         project_ctx = self._project_context()
 
         if mode == "plan":
-            return self._plan_only(user_input, project_ctx)
+            return self._agent_loop(
+                user_input,
+                effort,
+                project_ctx,
+                allow_write=False,
+                allow_bash=False,
+                system_template=SYSTEM_PLAN,
+            )
 
-        return self._build_with_tools(user_input, effort, project_ctx)
+        # BUILD: optional specialist planning pass on high+
+        plan_note = ""
+        if effort in ("high", "max", "ultra"):
+            plan_note = self._specialist_plan(user_input, project_ctx)
+
+        return self._agent_loop(
+            user_input,
+            effort,
+            project_ctx,
+            allow_write=True,
+            allow_bash=True,
+            system_template=SYSTEM_BUILD,
+            extra_context=plan_note,
+        )
 
     def _project_context(self) -> str:
-        """Lightweight project awareness (inspired by OpenCode AGENTS.md)."""
         parts = [f"Project root: {get_cwd()}"]
-        agents_md = get_cwd() / "AGENTS.md"
-        if agents_md.exists():
-            try:
-                parts.append("AGENTS.md:\n" + agents_md.read_text(encoding="utf-8")[:3000])
-            except Exception:
-                pass
+        for name in ("AGENTS.md", "CLAUDE.md"):
+            p = get_cwd() / name
+            if p.exists():
+                try:
+                    parts.append(f"{name}:\n" + p.read_text(encoding="utf-8")[:4000])
+                    break
+                except Exception:
+                    pass
         else:
-            # quick tree snapshot
             try:
-                tree = tool_list_dir(".")
-                parts.append("Top-level files:\n" + tree[:1500])
+                parts.append("Top-level:\n" + tool_list_dir(".")[:1200])
             except Exception:
                 pass
         return "\n\n".join(parts)
 
-    def _plan_only(self, user_input: str, project_ctx: str) -> str:
+    def _specialist_plan(self, user_input: str, project_ctx: str) -> str:
         model = get_model_for_task("planning")
         messages = [
             {
                 "role": "system",
                 "content": (
-                    "You are Caliber Agent in PLAN mode (read-only).\n"
-                    "Produce a clear, actionable plan. Do NOT edit files or run commands.\n"
-                    "Focus on architecture, steps, risks, and success criteria.\n\n"
-                    f"{project_ctx}"
+                    "You are the Planning specialist. Create a precise implementation plan.\n"
+                    "List concrete files and steps. No fluff.\n\n" + project_ctx
                 ),
             },
             {"role": "user", "content": user_input},
         ]
-        with Progress(SpinnerColumn(), TextColumn("[bold blue]Planning..."), transient=True) as progress:
-            progress.add_task("plan", total=None)
-            result = chat(model, messages, temperature=0.3)
-        self._track(result, "planning", model)
-        return result["content"]
+        with Progress(SpinnerColumn(), TextColumn(f"[bold blue]Plan specialist · {model}"), transient=True) as progress:
+            progress.add_task("p", total=None)
+            res = chat(model, messages, temperature=0.25)
+        self._track(res, "planning", model)
+        return "\nApproved plan from planning specialist:\n" + res["content"]
 
-    def _build_with_tools(self, user_input: str, effort: str, project_ctx: str) -> str:
-        """Full agent loop with tools + multi-model specialists."""
-        primary_task = classify_task(user_input)
-        allow_bash = True  # build mode
+    def _agent_loop(
+        self,
+        user_input: str,
+        effort: str,
+        project_ctx: str,
+        allow_write: bool,
+        allow_bash: bool,
+        system_template: str,
+        extra_context: str = "",
+    ) -> str:
+        focus = classify_task(user_input)
+        # Multi-model edge: pick the best model for this focus
+        model = get_model_for_task("coding" if focus == "coding" else focus)
 
-        # High effort: first get a specialist plan
-        plan_text = ""
-        if effort in ("high", "max", "ultra"):
-            plan_model = get_model_for_task("planning")
-            plan_msgs = [
-                {
-                    "role": "system",
-                    "content": (
-                        "You are the Planning specialist of Caliber Agent.\n"
-                        "Create a precise step-by-step plan. Be concrete about files and commands.\n\n"
-                        f"{project_ctx}"
-                    ),
-                },
-                {"role": "user", "content": user_input},
-            ]
-            with Progress(SpinnerColumn(), TextColumn(f"[bold blue]Planning · {plan_model}"), transient=True) as progress:
-                progress.add_task("plan", total=None)
-                plan_res = chat(plan_model, plan_msgs, temperature=0.25)
-            self._track(plan_res, "planning", plan_model)
-            plan_text = plan_res["content"]
-
-        # Main execution model (coding specialist for code tasks, else default)
-        exec_model = get_model_for_task("coding" if primary_task == "coding" else primary_task)
-
-        system = (
-            "You are Caliber Agent — a powerful coding agent with tools.\n"
-            f"Current specialist focus: {primary_task}\n"
-            f"Effort: {effort}\n"
-            "You can call tools to explore and modify the project.\n"
-            "Use tools when needed. Prefer minimal, correct changes.\n"
-            "When finished, give a clear final answer to the user.\n\n"
-            f"{project_ctx}\n"
-        )
-        if plan_text:
-            system += f"\nApproved plan:\n{plan_text}\n"
+        system = system_template.format(focus=focus, effort=effort, project_ctx=project_ctx)
+        if extra_context:
+            system += "\n" + extra_context
 
         messages: List[Dict[str, Any]] = [
             {"role": "system", "content": system},
             {"role": "user", "content": user_input},
         ]
 
-        max_rounds = {"low": 4, "medium": 8, "high": 12, "max": 16, "ultra": 20}.get(effort, 8)
+        max_rounds = {"low": 5, "medium": 10, "high": 14, "max": 18, "ultra": 24}.get(effort, 10)
+        final_content = ""
 
         for round_i in range(max_rounds):
             with Progress(
                 SpinnerColumn(),
-                TextColumn(f"[bold cyan]Agent loop {round_i+1}/{max_rounds} · {exec_model}"),
+                TextColumn(f"[bold cyan]Loop {round_i+1}/{max_rounds} · {model}"),
                 transient=True,
             ) as progress:
-                progress.add_task("loop", total=None)
-                result = chat_with_tools(exec_model, messages, TOOL_SPECS, temperature=0.3)
+                progress.add_task("l", total=None)
+                result = chat_with_tools(model, messages, TOOL_SPECS, temperature=0.25)
 
-            self._track(result, primary_task, exec_model)
-
-            # Tool calls?
+            self._track(result, focus, model)
             tool_calls = result.get("tool_calls") or []
             content = result.get("content") or ""
+            final_content = content or final_content
 
             if not tool_calls:
-                # Final answer
-                if effort in ("max", "ultra") and content:
-                    # Optional critique pass
-                    return self._critique_and_polish(user_input, content, effort)
-                return content or "Done."
+                break
 
-            # Execute tools and feed results back
             messages.append({
                 "role": "assistant",
                 "content": content,
@@ -163,36 +183,83 @@ class CaliberAgent:
                     args = json.loads(fn.get("arguments") or "{}")
                 except Exception:
                     args = {}
-                console.print(f"  [dim]→ tool {name}({json.dumps(args)[:80]})[/]")
-                out = execute_tool(name, args, allow_bash=allow_bash)
+                short = json.dumps(args)[:90]
+                console.print(f"  [dim]→ {name}({short})[/]")
+                out = execute_tool(name, args, allow_write=allow_write, allow_bash=allow_bash)
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tc.get("id", "call"),
-                    "content": out[:12000],
+                    "content": out[:14000],
                 })
 
-        return content or "Reached max agent rounds. Partial work may be complete."
+        # Critique pass on max/ultra
+        if effort in ("max", "ultra") and final_content and allow_write:
+            return self._critique(user_input, final_content)
 
-    def _critique_and_polish(self, original: str, draft: str, effort: str) -> str:
+        return final_content or "Done."
+
+    def _critique(self, original: str, draft: str) -> str:
         model = get_model_for_task("critique")
         messages = [
             {
                 "role": "system",
                 "content": (
-                    "You are the Critique specialist. Review the draft answer/work. "
-                    "Fix any errors, improve clarity, and return the final polished response."
+                    "You are the Critique specialist. Review the work. "
+                    "Fix errors, tighten the answer, return the final polished response."
                 ),
             },
             {
                 "role": "user",
-                "content": f"Original request:\n{original}\n\nDraft:\n{draft}\n\nReturn the improved final answer.",
+                "content": f"Request:\n{original}\n\nDraft:\n{draft}\n\nFinal answer:",
             },
         ]
         with Progress(SpinnerColumn(), TextColumn(f"[bold magenta]Critique · {model}"), transient=True) as progress:
-            progress.add_task("crit", total=None)
-            result = chat(model, messages, temperature=0.25)
-        self._track(result, "critique", model)
-        return result["content"]
+            progress.add_task("c", total=None)
+            res = chat(model, messages, temperature=0.2)
+        self._track(res, "critique", model)
+        return res["content"]
+
+    def init_project(self) -> str:
+        """/init — create AGENTS.md like OpenCode."""
+        model = get_model_for_task("planning")
+        tree = tool_list_dir(".")
+        # sample a few key files if present
+        samples = []
+        for candidate in ["README.md", "package.json", "pyproject.toml", "Cargo.toml", "go.mod"]:
+            p = get_cwd() / candidate
+            if p.exists():
+                try:
+                    samples.append(f"### {candidate}\n" + p.read_text(encoding="utf-8")[:1500])
+                except Exception:
+                    pass
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Analyze this project and write a concise AGENTS.md for an AI coding agent.\n"
+                    "Include: project purpose, structure, key commands, conventions, and gotchas.\n"
+                    "Be short and actionable. Output ONLY the markdown content."
+                ),
+            },
+            {
+                "role": "user",
+                "content": f"Root listing:\n{tree}\n\n" + "\n\n".join(samples),
+            },
+        ]
+        with Progress(SpinnerColumn(), TextColumn("[bold blue]Generating AGENTS.md..."), transient=True) as progress:
+            progress.add_task("i", total=None)
+            res = chat(model, messages, temperature=0.3)
+        self._track(res, "planning", model)
+        content = res["content"].strip()
+        # strip markdown fences if any
+        if content.startswith("```"):
+            content = content.split("\n", 1)[-1]
+            if content.endswith("```"):
+                content = content.rsplit("```", 1)[0]
+        path = get_cwd() / "AGENTS.md"
+        tool_write_file("AGENTS.md", content.strip() + "\n")
+        return f"Created {path}\n\n" + content[:2000]
 
     def _track(self, result: Dict[str, Any], task_type: str, model: str) -> None:
         usage = result.get("usage", {})

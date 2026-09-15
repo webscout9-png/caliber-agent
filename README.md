@@ -1,17 +1,10 @@
 # Caliber Agent
 
-**The specialized multi-model OpenRouter coding agent.**
+**OpenCode-level coding agent + multi-model specialist routing.**
 
-Caliber is a full terminal coding agent (inspired by the best of OpenCode) with one unique superpower:
+Caliber matches the best of OpenCode (Plan/Build, tools, AGENTS.md, agent loop) and goes further:
 
-> **Different best models for different tasks.**
-
-Planning → strong planner model  
-Coding → best coding model  
-Reasoning / critique → strong reasoners  
-Search → online models  
-
-One OpenRouter key. Live catalog of 200+ models. Higher quality at lower cost.
+> **Different best models for different jobs** — planning, coding, critique, search — each on the optimal OpenRouter model.
 
 ## Install
 
@@ -20,58 +13,54 @@ curl -fsSL https://raw.githubusercontent.com/webscout9-png/caliber-agent/main/sc
 ```
 
 ```bash
+cd your-project
 caliberagent
 ```
 
-## What makes it different
+## vs OpenCode
 
-| Feature | Caliber |
-|---------|--------|
-| Multi-model specialist routing | **Core** — best model per role |
-| Live OpenRouter catalog (200+) | Yes |
-| Plan / Build modes | Yes |
-| File tools (read/write/list/grep) | Yes |
-| Bash tool | Yes (Build mode) |
-| Project awareness (AGENTS.md) | Yes |
-| Agent tool loop | Yes |
-| Effort levels (low→ultra) | Yes |
-| Free model detection | Yes |
+| Capability | OpenCode | Caliber |
+|------------|----------|---------|
+| Plan / Build modes | Yes | Yes |
+| File tools (read/write/edit/glob/grep) | Yes | Yes |
+| Bash | Yes | Yes |
+| Web fetch | Yes | Yes |
+| `/init` → AGENTS.md | Yes | Yes |
+| Agent tool loop | Yes | Yes |
+| **Best model per specialist role** | Usually one model | **Core feature** |
+| Live 200+ OpenRouter models | Via providers | **Native + free detection** |
+| Effort levels low→ultra | — | Yes |
 
-## Quick Start
+## Quick start
 
-1. `/provider` → paste OpenRouter key
-2. `/model` → Best or Custom (search + number picker)
-3. `/plan` or `/build`
-4. Work on a real project — Caliber reads/writes files and can run commands
-
-Optional: create an `AGENTS.md` in your repo root so Caliber understands your conventions (same idea as OpenCode).
+```bash
+caliberagent
+/provider          # OpenRouter key
+/init              # create AGENTS.md for this repo
+/build             # full agent
+# or /plan for read-only
+```
 
 ## Commands
 
-| Command     | Description                                      |
-|-------------|--------------------------------------------------|
-| `/provider` | Set OpenRouter API key                           |
-| `/model`    | Best or Custom (live catalog, number + search)   |
-| `/models`   | Browse / search every OpenRouter model           |
-| `/effort`   | low · medium · high · max · ultra                |
-| `/plan`     | Read-only planning mode                          |
-| `/build`    | Full agent with tools + edits + bash             |
-| `/status`   | Config + last run trace                          |
-| `/usage`    | Tokens                                           |
-| `/exit`     | Quit                                             |
+| Command | Description |
+|---------|-------------|
+| `/provider` | OpenRouter API key |
+| `/model` | Best or Custom (number + search) |
+| `/models` | Full live catalog |
+| `/effort` | low · medium · high · max · ultra |
+| `/plan` | Read-only planning |
+| `/build` | Full tools + edits + bash |
+| `/init` | Generate AGENTS.md |
+| `/status` | Config + last specialist trace |
+| `/exit` | Quit |
 
-## Architecture (v0.5)
+## Architecture
 
-1. **Classify** the request
-2. **Plan** with a specialist planning model (high+)
-3. **Execute** with the best model for the task + full tool loop
-4. **Critique** on max/ultra for final polish
-5. Tools: `list_dir`, `read_file`, `write_file`, `grep`, `bash`
+1. Classify task → pick specialist model  
+2. High+ effort → planning specialist first  
+3. Agent loop with tools (permissions by mode)  
+4. Max/ultra → critique specialist polish  
 
-This is OpenCode-level agency + Caliber’s unique multi-model routing.
-
-## License
-
-MIT
-
-**https://github.com/webscout9-png/caliber-agent**
+**Repo:** https://github.com/webscout9-png/caliber-agent  
+**License:** MIT
