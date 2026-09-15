@@ -3,7 +3,7 @@
 **The specialized multi-model OpenRouter terminal agent.**
 
 Caliber does not force one expensive model for everything.  
-It decomposes every request into precise sub-tasks and routes each one to the *best* model for that job (Claude for coding, strong reasoners for logic, online models for search, fast models for synthesis, etc.).
+It decomposes every request into precise sub-tasks and routes each one to the *best* model for that job.
 
 One OpenRouter API key. Higher quality. Lower cost.
 
@@ -25,59 +25,58 @@ Then:
 caliberagent
 ```
 
-## Core Philosophy
+## Quick Start
 
-Most agents are generalists that overpay.  
-Caliber is a **specialist orchestrator**:
+1. `caliberagent`
+2. `/provider` → paste your OpenRouter key
+3. (optional) `/model` → choose **Best** or **Custom** (pick by number, no typing IDs)
+4. (optional) `/effort` → low / medium / high / max / ultra
+5. Just type your request
 
-1. Classifies the request
-2. Decomposes it (simple heuristics for low effort, full LLM planner for high/max/ultra)
-3. Routes every sub-task to the optimal model
-4. Synthesizes a clean final answer
+## Model Selection (v0.3)
 
-This produces better results than using Claude or GPT-4 for every single token.
+`/model` → Custom now shows a **numbered list** for every specialist role.
+
+You only type a number (1, 2, 3…). Never type long model IDs.
+
+Free models are clearly marked `(free)`.
+
+Current catalog (Sep 2026) includes:
+- Claude Fable 5.1
+- GPT-5.6 Luna / Sol
+- DeepSeek V4 / V4.1 Flash
+- Hy4 Preview
+- GLM 5.3 / Flash
+- Gemini 3.8 Flash
+- MiMo V2.5
+- Nemotron 3 Ultra (free)
+- Sonar Pro (search)
 
 ## Commands
 
 | Command     | Description                                      |
 |-------------|--------------------------------------------------|
 | `/provider` | Set your OpenRouter API key                      |
-| `/model`    | Best (auto) or Custom model mapping per task     |
+| `/model`    | Best (auto) or Custom (pick by number)           |
 | `/effort`   | `low` · `medium` · `high` · `max` · `ultra`      |
-| `/plan`     | Switch to Plan mode (plan only, no execution)    |
-| `/build`    | Switch to Build mode (full execution)            |
+| `/plan`     | Switch to Plan mode                              |
+| `/build`    | Switch to Build mode                             |
 | `/skills`   | Extensible skills system                         |
 | `/usage`    | Token usage this session                         |
 | `/sessions` | List saved sessions                              |
-| `/status`   | Current configuration                            |
+| `/status`   | Current config + last run trace                  |
 | `/exit`     | Quit                                             |
 
-## Model Routing
+## Architecture
 
-**Best mode** (default): Caliber automatically selects strong models for each specialist role.
-
-**Custom mode**: You map any OpenRouter model ID yourself. Free models are clearly marked `(free)` in the catalog.
-
-## Effort Levels
-
-- **low** — single specialist call  
-- **medium** — plan → execute → light review  
-- **high** — richer decomposition + review  
-- **max** — full multi-step pipeline + synthesis  
-- **ultra** — LLM planner + search + multiple specialist passes + rigorous synthesis
-
-## Architecture (v0.2+)
-
-- `router.py` — intelligent classification + effort-aware decomposition  
-- LLM Planner (high/max/ultra) — uses a strong planning model to create real step graphs  
-- Specialist roles: planning, reasoning, coding, search, writing, critique  
-- Clean synthesis step so the user always receives one coherent answer  
-- Persistent config in `~/.caliber/`
+- Specialist roles: planning · reasoning · coding · search · writing · critique
+- Low/medium: fast heuristic decomposition
+- High/max/ultra: LLM planner creates a real step graph
+- Each step is routed to the best model for that specialist
+- Final synthesis produces one clean answer
 
 ## License
 
 MIT — fully open source.
-
----
 
 **Repo**: https://github.com/webscout9-png/caliber-agent

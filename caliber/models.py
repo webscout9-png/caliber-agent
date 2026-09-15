@@ -2,65 +2,71 @@ from __future__ import annotations
 
 from typing import Dict, List
 
-# Highly curated specialist catalog.
-# Prefer models that are currently strong on OpenRouter for their role.
-# Free models are explicitly marked.
+# Updated September 2026 — real OpenRouter usage leaders + strong specialists.
+# Free models are explicitly marked (free).
 
 MODEL_CATALOG: Dict[str, List[Dict[str, str]]] = {
     "planning": [
-        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "note": ""},
-        {"id": "openai/o1", "name": "OpenAI o1", "note": ""},
-        {"id": "openai/o1-mini", "name": "OpenAI o1-mini", "note": ""},
-        {"id": "google/gemini-2.0-flash-001", "name": "Gemini 2.0 Flash", "note": ""},
-        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1", "note": ""},
-        {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B", "note": "(free)"},
+        {"id": "anthropic/claude-fable-5.1", "name": "Claude Fable 5.1", "note": ""},
+        {"id": "openai/gpt-5.6-sol", "name": "GPT-5.6 Sol", "note": ""},
+        {"id": "tencent/hy4-preview", "name": "Hy4 Preview", "note": ""},
+        {"id": "deepseek/deepseek-v4.1-flash", "name": "DeepSeek V4.1 Flash", "note": ""},
+        {"id": "z-ai/glm-5.3", "name": "GLM 5.3", "note": ""},
+        {"id": "nvidia/nemotron-3-ultra", "name": "Nemotron 3 Ultra", "note": "(free)"},
     ],
     "reasoning": [
-        {"id": "openai/o1", "name": "OpenAI o1", "note": ""},
-        {"id": "openai/o1-mini", "name": "OpenAI o1-mini", "note": ""},
-        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1", "note": ""},
-        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "note": ""},
-        {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B", "note": "(free)"},
+        {"id": "anthropic/claude-fable-5.1", "name": "Claude Fable 5.1", "note": ""},
+        {"id": "openai/gpt-5.6-sol", "name": "GPT-5.6 Sol", "note": ""},
+        {"id": "deepseek/deepseek-v4.1-flash", "name": "DeepSeek V4.1 Flash", "note": ""},
+        {"id": "google/gemini-3.8-flash", "name": "Gemini 3.8 Flash", "note": ""},
+        {"id": "z-ai/glm-5.3", "name": "GLM 5.3", "note": ""},
+        {"id": "nvidia/nemotron-3-ultra", "name": "Nemotron 3 Ultra", "note": "(free)"},
     ],
     "coding": [
-        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "note": ""},
-        {"id": "deepseek/deepseek-chat", "name": "DeepSeek V3 / Chat", "note": ""},
-        {"id": "qwen/qwen-2.5-coder-32b-instruct", "name": "Qwen2.5 Coder 32B", "note": ""},
-        {"id": "openai/gpt-4o", "name": "GPT-4o", "note": ""},
-        {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B", "note": "(free)"},
+        {"id": "anthropic/claude-fable-5.1", "name": "Claude Fable 5.1", "note": ""},
+        {"id": "tencent/hy4-preview", "name": "Hy4 Preview", "note": ""},
+        {"id": "deepseek/deepseek-v4-flash", "name": "DeepSeek V4 Flash", "note": ""},
+        {"id": "openai/gpt-5.6-luna", "name": "GPT-5.6 Luna", "note": ""},
+        {"id": "z-ai/glm-5.3-flash", "name": "GLM 5.3 Flash", "note": ""},
+        {"id": "nvidia/nemotron-3-ultra", "name": "Nemotron 3 Ultra", "note": "(free)"},
     ],
     "search": [
-        {"id": "perplexity/llama-3.1-sonar-large-128k-online", "name": "Sonar Large Online", "note": ""},
-        {"id": "perplexity/llama-3.1-sonar-small-128k-online", "name": "Sonar Small Online", "note": ""},
-        {"id": "openai/gpt-4o-mini", "name": "GPT-4o mini", "note": ""},
+        {"id": "perplexity/sonar-pro", "name": "Sonar Pro", "note": ""},
+        {"id": "perplexity/sonar", "name": "Sonar", "note": ""},
+        {"id": "openai/gpt-5.6-luna", "name": "GPT-5.6 Luna", "note": ""},
+        {"id": "google/gemini-3.8-flash", "name": "Gemini 3.8 Flash", "note": ""},
     ],
     "writing": [
-        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "note": ""},
-        {"id": "openai/gpt-4o", "name": "GPT-4o", "note": ""},
-        {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B", "note": "(free)"},
+        {"id": "anthropic/claude-fable-5.1", "name": "Claude Fable 5.1", "note": ""},
+        {"id": "openai/gpt-5.6-luna", "name": "GPT-5.6 Luna", "note": ""},
+        {"id": "google/gemini-3.8-flash", "name": "Gemini 3.8 Flash", "note": ""},
+        {"id": "xiaomi/mimo-v2.5", "name": "MiMo V2.5", "note": ""},
+        {"id": "nvidia/nemotron-3-ultra", "name": "Nemotron 3 Ultra", "note": "(free)"},
     ],
     "critique": [
-        {"id": "openai/o1-mini", "name": "OpenAI o1-mini", "note": ""},
-        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "note": ""},
-        {"id": "deepseek/deepseek-r1", "name": "DeepSeek R1", "note": ""},
+        {"id": "anthropic/claude-fable-5.1", "name": "Claude Fable 5.1", "note": ""},
+        {"id": "openai/gpt-5.6-sol", "name": "GPT-5.6 Sol", "note": ""},
+        {"id": "deepseek/deepseek-v4.1-flash", "name": "DeepSeek V4.1 Flash", "note": ""},
+        {"id": "z-ai/glm-5.3", "name": "GLM 5.3", "note": ""},
     ],
     "default": [
-        {"id": "openai/gpt-4o", "name": "GPT-4o", "note": ""},
-        {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "note": ""},
-        {"id": "openai/gpt-4o-mini", "name": "GPT-4o mini", "note": ""},
-        {"id": "meta-llama/llama-3.3-70b-instruct", "name": "Llama 3.3 70B", "note": "(free)"},
+        {"id": "openai/gpt-5.6-luna", "name": "GPT-5.6 Luna", "note": ""},
+        {"id": "anthropic/claude-fable-5.1", "name": "Claude Fable 5.1", "note": ""},
+        {"id": "deepseek/deepseek-v4-flash", "name": "DeepSeek V4 Flash", "note": ""},
+        {"id": "google/gemini-3.8-flash", "name": "Gemini 3.8 Flash", "note": ""},
+        {"id": "nvidia/nemotron-3-ultra", "name": "Nemotron 3 Ultra", "note": "(free)"},
     ],
 }
 
-# Strong defaults used in "best" mode
+# Strong defaults used in "best" mode (current strong specialists)
 BEST_DEFAULTS = {
-    "planning": "anthropic/claude-3.5-sonnet",
-    "reasoning": "openai/o1-mini",
-    "coding": "anthropic/claude-3.5-sonnet",
-    "search": "perplexity/llama-3.1-sonar-large-128k-online",
-    "writing": "anthropic/claude-3.5-sonnet",
-    "critique": "openai/o1-mini",
-    "default": "openai/gpt-4o",
+    "planning": "anthropic/claude-fable-5.1",
+    "reasoning": "openai/gpt-5.6-sol",
+    "coding": "anthropic/claude-fable-5.1",
+    "search": "perplexity/sonar-pro",
+    "writing": "anthropic/claude-fable-5.1",
+    "critique": "openai/gpt-5.6-sol",
+    "default": "openai/gpt-5.6-luna",
 }
 
 def list_models_for_task(task: str) -> List[Dict[str, str]]:

@@ -62,7 +62,7 @@ def cmd_help() -> None:
     table.add_column("Command")
     table.add_column("Description")
     table.add_row("/provider", "Set OpenRouter API key (only provider)")
-    table.add_row("/model", "Best (auto) or Custom specialist mapping")
+    table.add_row("/model", "Best (auto) or Custom — pick models by number")
     table.add_row("/effort", "low | medium | high | max | ultra")
     table.add_row("/plan", "Switch to Plan mode")
     table.add_row("/build", "Switch to Build mode")
@@ -83,33 +83,60 @@ def cmd_provider() -> None:
     else:
         console.print("[yellow]No key entered.[/]")
 
+def _pick_model_by_number(task: str, current: str) -> str | None:
+    """Show numbered list and let user pick by number. Returns model id or None."""
+    models = list_models_for_task(task)
+    console.print(f"\n[bold cyan]{task.upper()}[/]  (current: {current or '—'})")
+    for i, m in enumerate(models, 1):
+        note = f" [green]{m['note']}[/]" if m.get("note") else ""
+        marker = " [bold]← current[/]" if m["id"] == current else ""
+        console.print(f"  [bold]{i}[/]  {m['name']}{note}{marker}")
+        console.print(f"      [dim]{m['id']}[/]")
+
+    choice = console.input(f"  Pick number (1-{len(models)}) or Enter to keep: ").strip()
+    if not choice:
+        return None
+    try:
+        idx = int(choice)
+        if 1 <= idx <= len(models):
+            selected = models[idx - 1]
+            console.print(f"  [green]→ {selected['name']}[/]")
+            return selected["id"]
+        else:
+            console.print("[yellow]Invalid number.[/]")
+            return None
+    except ValueError:
+        console.print("[yellow]Please enter a number.[/]")
+        return None
+
 def cmd_model() -> None:
     cfg = load_config()
-    console.print("1) [bold]Best[/]  — Caliber picks the strongest model for each specialist role")
-    console.print("2) [bold]Custom[/] — You choose models per specialist role")
+    console.print("1) [bold]Best[/]  — Caliber auto-picks the strongest model for each specialist role")
+    console.print("2) [bold]Custom[/] — You pick models by number (no typing IDs)")
     choice = console.input("Choice [1/2]: ").strip()
+
     if choice == "1":
         cfg["model_mode"] = "best"
         save_config(cfg)
         console.print("[green]Model mode → Best[/]")
-    elif choice == "2":
-        cfg["model_mode"] = "custom"
-        console.print("\nEnter OpenRouter model IDs. Leave blank to keep current.")
-        console.print("Free models are marked [green](free)[/] in the lists below.\n")
-        for task in ["planning", "reasoning", "coding", "search", "writing", "critique", "default"]:
-            current = cfg.get("custom_models", {}).get(task, "")
-            models = list_models_for_task(task)
-            console.print(f"[bold cyan]{task}[/]  (current: {current or '—'})")
-            for m in models:
-                note = f" [green]{m['note']}[/]" if m.get("note") else ""
-                console.print(f"   · {m['id']}{note}")
-            new = console.input(f"  New model for {task}: ").strip()
-            if new:
-                cfg.setdefault("custom_models", {})[task] = new
-        save_config(cfg)
-        console.print("[green]Custom specialist mapping saved.[/]")
-    else:
+        return
+
+    if choice != "2":
         console.print("[yellow]Cancelled.[/]")
+        return
+
+    cfg["model_mode"] = "custom"
+    console.print("\n[bold]Pick a model for each specialist role by number.[/]")
+    console.print("Free models are marked [green](free)[/]. Press Enter to keep current.\n")
+
+    for task in ["planning", "reasoning", "coding", "search", "writing", "critique", "default"]:
+        current = cfg.get("custom_models", {}).get(task, "")
+        selected = _pick_model_by_number(task, current)
+        if selected:
+            cfg.setdefault("custom_models", {})[task] = selected
+
+    save_config(cfg)
+    console.print("\n[green]Custom specialist mapping saved.[/]")
 
 def cmd_effort() -> None:
     cfg = load_config()

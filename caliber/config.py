@@ -17,13 +17,13 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "mode": "build",          # plan | build
     "model_mode": "best",     # best | custom
     "custom_models": {
-        "planning": "anthropic/claude-3.5-sonnet",
-        "reasoning": "openai/o1-mini",
-        "coding": "anthropic/claude-3.5-sonnet",
-        "search": "perplexity/llama-3.1-sonar-large-128k-online",
-        "writing": "anthropic/claude-3.5-sonnet",
-        "critique": "openai/o1-mini",
-        "default": "openai/gpt-4o-mini",
+        "planning": "anthropic/claude-fable-5.1",
+        "reasoning": "openai/gpt-5.6-sol",
+        "coding": "anthropic/claude-fable-5.1",
+        "search": "perplexity/sonar-pro",
+        "writing": "anthropic/claude-fable-5.1",
+        "critique": "openai/gpt-5.6-sol",
+        "default": "openai/gpt-5.6-luna",
     },
     "best_models": BEST_DEFAULTS.copy(),
 }
@@ -41,12 +41,10 @@ def load_config() -> Dict[str, Any]:
         data = json.load(f)
     merged = DEFAULT_CONFIG.copy()
     merged.update(data)
-    # ensure nested dicts exist
     for key in ("custom_models", "best_models"):
         if key not in merged or not isinstance(merged[key], dict):
             merged[key] = DEFAULT_CONFIG[key].copy()
         else:
-            # fill missing specialist keys
             for k, v in DEFAULT_CONFIG[key].items():
                 merged[key].setdefault(k, v)
     return merged
