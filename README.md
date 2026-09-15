@@ -2,10 +2,8 @@
 
 **The specialized multi-model OpenRouter terminal agent.**
 
-Caliber does not force one expensive model for everything.  
-It decomposes every request into precise sub-tasks and routes each one to the *best* model for that job.
-
-One OpenRouter API key. Higher quality. Lower cost.
+Caliber decomposes every request into specialist sub-tasks and routes each one to the best model.  
+One OpenRouter key → access to **every** model on OpenRouter (200+).
 
 ## Install
 
@@ -13,70 +11,50 @@ One OpenRouter API key. Higher quality. Lower cost.
 curl -fsSL https://raw.githubusercontent.com/webscout9-png/caliber-agent/main/scripts/install.sh | bash
 ```
 
-Or:
-
-```bash
-pip install git+https://github.com/webscout9-png/caliber-agent.git
-```
-
-Then:
-
 ```bash
 caliberagent
 ```
 
 ## Quick Start
 
-1. `caliberagent`
-2. `/provider` → paste your OpenRouter key
-3. (optional) `/model` → choose **Best** or **Custom** (pick by number, no typing IDs)
-4. (optional) `/effort` → low / medium / high / max / ultra
-5. Just type your request
+1. `/provider` → paste OpenRouter API key
+2. `/model` → Best (auto) or Custom (pick live models by number / search)
+3. `/models` → browse or search the **full live catalog** (hundreds of models)
+4. Type your request
 
-## Model Selection (v0.3)
+## Live Model Catalog (v0.4)
 
-`/model` → Custom now shows a **numbered list** for every specialist role.
+- Fetches **all** text models directly from OpenRouter API
+- Cached for 6 hours
+- Free models automatically marked `(free)`
+- `/models` → search the entire catalog
+- `/model` → Custom shows smart shortlists + full search (just type a number or a search term)
 
-You only type a number (1, 2, 3…). Never type long model IDs.
-
-Free models are clearly marked `(free)`.
-
-Current catalog (Sep 2026) includes:
-- Claude Fable 5.1
-- GPT-5.6 Luna / Sol
-- DeepSeek V4 / V4.1 Flash
-- Hy4 Preview
-- GLM 5.3 / Flash
-- Gemini 3.8 Flash
-- MiMo V2.5
-- Nemotron 3 Ultra (free)
-- Sonar Pro (search)
+You never have to type long model IDs.
 
 ## Commands
 
 | Command     | Description                                      |
 |-------------|--------------------------------------------------|
-| `/provider` | Set your OpenRouter API key                      |
-| `/model`    | Best (auto) or Custom (pick by number)           |
-| `/effort`   | `low` · `medium` · `high` · `max` · `ultra`      |
-| `/plan`     | Switch to Plan mode                              |
-| `/build`    | Switch to Build mode                             |
-| `/skills`   | Extensible skills system                         |
-| `/usage`    | Token usage this session                         |
-| `/sessions` | List saved sessions                              |
-| `/status`   | Current config + last run trace                  |
+| `/provider` | Set OpenRouter API key                           |
+| `/model`    | Best or Custom (number + search picker)          |
+| `/models`   | Browse / search every OpenRouter model           |
+| `/effort`   | low · medium · high · max · ultra                |
+| `/plan`     | Plan mode                                        |
+| `/build`    | Build mode                                       |
+| `/status`   | Config + last run trace                          |
+| `/usage`    | Tokens used                                      |
 | `/exit`     | Quit                                             |
 
 ## Architecture
 
-- Specialist roles: planning · reasoning · coding · search · writing · critique
-- Low/medium: fast heuristic decomposition
-- High/max/ultra: LLM planner creates a real step graph
-- Each step is routed to the best model for that specialist
-- Final synthesis produces one clean answer
+Specialist roles: planning · reasoning · coding · search · writing · critique  
+Low/medium effort = fast heuristics  
+High/max/ultra = LLM planner creates real step graphs  
+Final synthesis always returns one clean answer
 
 ## License
 
-MIT — fully open source.
+MIT
 
-**Repo**: https://github.com/webscout9-png/caliber-agent
+**https://github.com/webscout9-png/caliber-agent**

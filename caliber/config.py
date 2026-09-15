@@ -14,16 +14,16 @@ DEFAULT_CONFIG: Dict[str, Any] = {
     "provider": "openrouter",
     "api_key": None,
     "effort": "medium",
-    "mode": "build",          # plan | build
-    "model_mode": "best",     # best | custom
+    "mode": "build",
+    "model_mode": "best",
     "custom_models": {
-        "planning": "anthropic/claude-fable-5.1",
-        "reasoning": "openai/gpt-5.6-sol",
-        "coding": "anthropic/claude-fable-5.1",
-        "search": "perplexity/sonar-pro",
-        "writing": "anthropic/claude-fable-5.1",
-        "critique": "openai/gpt-5.6-sol",
-        "default": "openai/gpt-5.6-luna",
+        "planning": BEST_DEFAULTS["planning"],
+        "reasoning": BEST_DEFAULTS["reasoning"],
+        "coding": BEST_DEFAULTS["coding"],
+        "search": BEST_DEFAULTS["search"],
+        "writing": BEST_DEFAULTS["writing"],
+        "critique": BEST_DEFAULTS["critique"],
+        "default": BEST_DEFAULTS["default"],
     },
     "best_models": BEST_DEFAULTS.copy(),
 }
