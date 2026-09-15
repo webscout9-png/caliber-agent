@@ -47,4 +47,47 @@ def chat(
         "content": choice.message.content or "",
         "model": resp.model or model,
         "usage": usage,
+        "tool_calls": None,
+    }
+
+def chat_with_tools(
+    model: str,
+    messages: List[Dict[str, Any]],
+    tools: List[Dict[str, Any]],
+    temperature: float = 0.3,
+) -> Dict[str, Any]:
+    """Chat with tool calling support."""
+    client = get_client()
+    resp = client.chat.completions.create(
+        model=model,
+        messages=messages,
+        tools=tools,
+        temperature=temperature,
+    )
+    choice = resp.choices[0]
+    msg = choice.message
+
+    tool_calls = None
+    if getattr(msg, "tool_calls", None):
+        tool_calls = []
+        for tc in msg.tool_calls:
+            tool_calls.append({
+                "id": tc.id,
+                "type": "function",
+                "function": {
+                    "name": tc.function.name,
+                    "arguments": tc.function.arguments or "{}",
+                },
+            })
+
+    usage = {
+        "prompt_tokens": getattr(resp.usage, "prompt_tokens", 0) or 0,
+        "completion_tokens": getattr(resp.usage, "completion_tokens", 0) or 0,
+        "total_tokens": getattr(resp.usage, "total_tokens", 0) or 0,
+    }
+    return {
+        "content": msg.content or "",
+        "model": resp.model or model,
+        "usage": usage,
+        "tool_calls": tool_calls,
     }
