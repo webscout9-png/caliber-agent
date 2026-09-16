@@ -6,9 +6,9 @@ from pathlib import Path
 from textual import on, work
 from textual.app import App, ComposeResult
 from textual.binding import Binding
-from textual.containers import Horizontal, Vertical
+from textual.containers import Vertical
 from textual.reactive import reactive
-from textual.widgets import Footer, Input, RichLog, Static
+from textual.widgets import Input, RichLog, Static
 
 from . import __version__
 from .agent import CaliberAgent
@@ -20,77 +20,60 @@ def _ts() -> str:
 
 
 class CaliberApp(App):
-    """Simple, responsive full-screen TUI for Caliber."""
+    """Minimal reliable TUI — log on top, input always at bottom."""
 
+    # Pure vertical stack: header | log | status | input
+    # No Footer widget (it was stealing space / hiding the prompt)
     CSS = """
     Screen {
+        layout: vertical;
         background: #0d0d0f;
     }
 
-    #header {
-        dock: top;
-        height: 3;
-        background: #16161a;
+    #top {
+        height: 2;
+        background: #1a1a1e;
         color: #e4e4e7;
-        padding: 0 2;
-        border-bottom: tall #2a2a30;
-    }
-
-    #header-title {
-        text-style: bold;
-        color: #7dd3fc;
-    }
-
-    #body {
-        height: 1fr;
+        padding: 0 1;
+        border-bottom: solid #333;
     }
 
     #log {
-        width: 1fr;
         height: 1fr;
+        min-height: 5;
         background: #0d0d0f;
-        border: solid #1f1f24;
+        border: solid #222;
         padding: 0 1;
         scrollbar-size-vertical: 1;
     }
 
-    #side {
-        width: 26;
-        height: 1fr;
-        background: #121216;
-        border: solid #1f1f24;
-        padding: 1 1;
+    #status {
+        height: 1;
+        background: #1a1a1e;
         color: #a1a1aa;
+        padding: 0 1;
+        border-top: solid #333;
     }
 
-    #footer-input {
-        dock: bottom;
+    #input {
         height: 3;
-        background: #16161a;
-        border-top: tall #2a2a30;
+        background: #0d0d0f;
+        border: tall #38bdf8;
+        color: #fafafa;
+        margin: 0 0;
         padding: 0 1;
     }
 
-    Input {
-        background: #0d0d0f;
-        border: solid #3f3f46;
-        color: #fafafa;
-        width: 1fr;
-    }
-
-    Input:focus {
-        border: solid #38bdf8;
-    }
-
-    Footer {
-        background: #16161a;
+    #input:focus {
+        border: tall #7dd3fc;
     }
     """
 
     BINDINGS = [
-        Binding("ctrl+c", "quit", "Quit", show=True, priority=True),
-        Binding("ctrl+q", "quit", "Quit", show=False),
-        Binding("ctrl+p", "toggle_mode", "Plan/Build", show=True),
+        Binding("ctrl+c", "quit", "Quit", priority=True),
+        Binding("ctrl+q", "quit", "Quit"),
+        Binding("ctrl+p", "toggle_mode", "Plan/Build"),
+        Binding("escape", "focus_input", "Focus"),
     ]
 
     TITLE = "Caliber"
@@ -101,146 +84,107 @@ class CaliberApp(App):
         self.agent = CaliberAgent()
 
     def compose(self) -> ComposeResult:
-        with Vertical(id="header"):
-            yield Static(
-                f"[bold #7dd3fc]CALIBER[/]  v{__version__}   "
-                f"[dim]{Path.cwd()}[/]",
-                id="header-title",
-            )
-            yield Static(self._status_line(), id="header-status")
-
-        with Horizontal(id="body"):
-            yield RichLog(id="log", markup=True, highlight=True, wrap=True, auto_scroll=True)
-            yield Static(self._side_text(), id="side")
-
-        with Horizontal(id="footer-input"):
-            yield Input(placeholder="Message Caliber…  (/help for commands)", id="input")
-
-        yield Footer()
+        yield Static(self._header_text(), id="top")
+        yield RichLog(id="log", markup=True, wrap=True, auto_scroll=True, max_lines=2000)
+        yield Static(self._status_text(), id="status")
+        yield Input(
+            placeholder="Type here and press Enter…   /help  /provider  /plan  /build",
+            id="input",
+        )
 
     def on_mount(self) -> None:
         log = self.query_one("#log", RichLog)
-        log.write(f"[bold #7dd3fc]Caliber Agent[/] v{__version__}")
-        log.write(f"[dim]Project: {Path.cwd()}[/]")
+        log.write(f"[bold cyan]Caliber Agent[/] v{__version__}")
+        log.write(f"[dim]{Path.cwd()}[/]")
         log.write("")
         if not get_api_key():
-            log.write("[yellow]No API key.[/] Type:  [bold]/provider sk-or-your-key[/]")
+            log.write("[yellow]No API key.[/] Type:")
+            log.write("  [bold]/provider sk-or-your-key[/]")
         else:
-            log.write("[green]Ready.[/] Type a request or [bold]/help[/]")
-        log.write("[dim]────────────────────────────────────────[/]")
-        self.query_one("#input", Input).focus()
+            log.write("[green]Ready.[/] Type a message below and press Enter.")
+        log.write("[dim]─────────────────────────────────────[/]")
+        # Always focus the input so typing works immediately
+        self.set_focus(self.query_one("#input", Input))
 
-    def _status_line(self) -> str:
-        cfg = load_config()
-        key = "[green]key✓[/]" if get_api_key() else "[red]key✗[/]"
+    def _header_text(self) -> str:
         return (
-            f"mode=[bold]{cfg.get('mode', 'build')}[/]  "
-            f"effort=[bold]{cfg.get('effort', 'medium')}[/]  "
-            f"models=[bold]{cfg.get('model_mode', 'best')}[/]  "
-            f"{key}  tokens=[bold]{self.agent.total_tokens}[/]"
+            f"[bold cyan]CALIBER[/] v{__version__}  "
+            f"[dim]| Ctrl+P plan/build | Ctrl+C quit | Esc focus input[/]"
         )
 
-    def _side_text(self) -> str:
+    def _status_text(self) -> str:
         cfg = load_config()
-        lines = [
-            "[bold #7dd3fc]SESSION[/]",
-            f"mode    {cfg.get('mode')}",
-            f"effort  {cfg.get('effort')}",
-            f"models  {cfg.get('model_mode')}",
-            f"tokens  {self.agent.total_tokens}",
-            f"key     {'set' if get_api_key() else 'MISSING'}",
-            "",
-            "[bold #7dd3fc]COMMANDS[/]",
-            "/provider  set key",
-            "/plan      read-only",
-            "/build     full tools",
-            "/effort X  low…ultra",
-            "/init      AGENTS.md",
-            "/models    catalog",
-            "/status",
-            "/help",
-            "/exit",
-            "",
-            "[bold #7dd3fc]KEYS[/]",
-            "Ctrl+P  plan/build",
-            "Ctrl+C  quit",
-        ]
-        if self.agent.last_trace:
-            lines.append("")
-            lines.append("[bold #7dd3fc]TRACE[/]")
-            for s in self.agent.last_trace[-5:]:
-                lines.append(f"{s['task'][:10]} {s['tokens']}t")
-        return "\n".join(lines)
+        key = "key✓" if get_api_key() else "key✗"
+        busy = " [yellow]WORKING…[/]" if self.busy else ""
+        return (
+            f"mode={cfg.get('mode', 'build')}  "
+            f"effort={cfg.get('effort', 'medium')}  "
+            f"models={cfg.get('model_mode', 'best')}  "
+            f"{key}  tokens={self.agent.total_tokens}{busy}"
+        )
 
-    def refresh_chrome(self) -> None:
+    def refresh_status(self) -> None:
         try:
-            self.query_one("#header-status", Static).update(self._status_line())
-            self.query_one("#side", Static).update(self._side_text())
+            self.query_one("#status", Static).update(self._status_text())
         except Exception:
             pass
 
+    def action_focus_input(self) -> None:
+        self.set_focus(self.query_one("#input", Input))
+
     @on(Input.Submitted, "#input")
-    def handle_input(self, event: Input.Submitted) -> None:
+    def on_submit(self, event: Input.Submitted) -> None:
         text = (event.value or "").strip()
         event.input.value = ""
         if not text:
             return
         if self.busy:
-            self.query_one("#log", RichLog).write("[yellow]Busy — wait for current task[/]")
+            self.query_one("#log", RichLog).write("[yellow]Busy — please wait[/]")
             return
 
         if text.startswith("/"):
             self.handle_command(text)
+            self.set_focus(event.input)
             return
 
         log = self.query_one("#log", RichLog)
         log.write("")
-        log.write(f"[bold #86efac]you[/] [dim]{_ts()}[/]")
+        log.write(f"[bold green]you[/] [dim]{_ts()}[/]")
         log.write(text)
-        log.write("")
         self.busy = True
-        self.refresh_chrome()
+        self.refresh_status()
         self.run_agent(text)
 
     @work(thread=True, exclusive=True)
     def run_agent(self, text: str) -> None:
-        # Silence rich Progress in agent while TUI is active
         import caliber.agent as agent_mod
         from rich.console import Console
 
-        quiet = Console(quiet=True)
         old = agent_mod.console
-        agent_mod.console = quiet
+        agent_mod.console = Console(quiet=True)
         try:
             result = self.agent.run(text)
+            self.call_from_thread(self.show_result, result or "(empty)")
         except Exception as e:
-            result = None
-            err = str(e)
-            self.call_from_thread(self._on_error, err)
-            return
+            self.call_from_thread(self.show_error, str(e))
         finally:
             agent_mod.console = old
 
-        self.call_from_thread(self._on_result, result or "(no output)")
-
-    def _on_result(self, result: str) -> None:
+    def show_result(self, result: str) -> None:
         log = self.query_one("#log", RichLog)
-        log.write(f"[bold #7dd3fc]caliber[/] [dim]{_ts()}[/]")
-        # Write result line by line for readability
-        for line in (result or "").splitlines() or ["(empty)"]:
+        log.write(f"[bold cyan]caliber[/] [dim]{_ts()}[/]")
+        for line in result.splitlines() or ["(empty)"]:
             log.write(line)
-        log.write("[dim]────────────────────────────────────────[/]")
+        log.write("[dim]─────────────────────────────────────[/]")
         self.busy = False
-        self.refresh_chrome()
-        self.query_one("#input", Input).focus()
+        self.refresh_status()
+        self.set_focus(self.query_one("#input", Input))
 
-    def _on_error(self, err: str) -> None:
-        log = self.query_one("#log", RichLog)
-        log.write(f"[red]Error:[/] {err}")
-        log.write("[dim]────────────────────────────────────────[/]")
+    def show_error(self, err: str) -> None:
+        self.query_one("#log", RichLog).write(f"[red]Error:[/] {err}")
         self.busy = False
-        self.refresh_chrome()
-        self.query_one("#input", Input).focus()
+        self.refresh_status()
+        self.set_focus(self.query_one("#input", Input))
 
     def handle_command(self, cmd: str) -> None:
         log = self.query_one("#log", RichLog)
@@ -252,67 +196,65 @@ class CaliberApp(App):
         if name in ("/exit", "/quit", "/q"):
             self.exit()
             return
-
         if name == "/help":
             log.write(
-                "[bold]Commands[/]  /provider KEY  /plan  /build  "
-                "/effort low|medium|high|max|ultra  /init  /models  /status  /exit"
+                "/provider KEY  /plan  /build  /effort low|medium|high|max|ultra  "
+                "/init  /models  /status  /exit"
             )
         elif name == "/provider":
             if rest:
                 set_api_key(rest)
                 log.write("[green]API key saved.[/]")
             else:
-                log.write("Usage: [bold]/provider sk-or-...[/]")
+                log.write("Usage: /provider sk-or-...")
         elif name == "/plan":
             cfg["mode"] = "plan"
             save_config(cfg)
-            log.write("[cyan]→ Plan mode[/] (read-only)")
+            log.write("[cyan]→ plan[/]")
         elif name == "/build":
             cfg["mode"] = "build"
             save_config(cfg)
-            log.write("[green]→ Build mode[/] (tools + bash)")
+            log.write("[green]→ build[/]")
         elif name == "/effort":
             if rest in ("low", "medium", "high", "max", "ultra"):
                 cfg["effort"] = rest
                 save_config(cfg)
-                log.write(f"[green]Effort → {rest}[/]")
+                log.write(f"[green]effort → {rest}[/]")
             else:
-                log.write("Usage: /effort low|medium|high|max|ultra")
+                log.write("/effort low|medium|high|max|ultra")
         elif name == "/model":
             if rest in ("best", "custom"):
                 cfg["model_mode"] = rest
                 save_config(cfg)
-                log.write(f"[green]Models → {rest}[/]")
+                log.write(f"models → {rest}")
             else:
-                log.write("Usage: /model best|custom")
+                log.write("/model best|custom")
         elif name == "/status":
-            log.write(self._status_line())
-        elif name == "/usage":
-            log.write(f"Tokens: {self.agent.total_tokens}")
+            log.write(self._status_text())
         elif name == "/init":
             if not get_api_key():
-                log.write("[yellow]Set /provider first[/]")
+                log.write("[yellow]/provider first[/]")
             else:
                 self.busy = True
+                self.refresh_status()
                 self.run_init()
                 return
         elif name == "/models":
             self.busy = True
+            self.refresh_status()
             self.run_models()
             return
         else:
-            log.write(f"[yellow]Unknown:[/] {name}  (/help)")
-
-        self.refresh_chrome()
+            log.write(f"Unknown: {name}  (/help)")
+        self.refresh_status()
 
     @work(thread=True, exclusive=True)
     def run_init(self) -> None:
         try:
-            result = self.agent.init_project()
-            self.call_from_thread(self._on_result, result)
+            r = self.agent.init_project()
+            self.call_from_thread(self.show_result, r)
         except Exception as e:
-            self.call_from_thread(self._on_error, str(e))
+            self.call_from_thread(self.show_error, str(e))
 
     @work(thread=True, exclusive=True)
     def run_models(self) -> None:
@@ -321,21 +263,19 @@ class CaliberApp(App):
         try:
             models = fetch_all_models()
             free = sum(1 for m in models if m.get("note") == "(free)")
-            lines = [f"{len(models)} models ({free} free)"]
-            for m in models[:20]:
-                note = f" {m['note']}" if m.get("note") else ""
-                lines.append(f"  {m['id']}{note}")
-            lines.append("  …")
-            self.call_from_thread(self._on_result, "\n".join(lines))
+            lines = [f"{len(models)} models ({free} free)"] + [
+                f"  {m['id']}{(' ' + m['note']) if m.get('note') else ''}" for m in models[:25]
+            ]
+            self.call_from_thread(self.show_result, "\n".join(lines))
         except Exception as e:
-            self.call_from_thread(self._on_error, str(e))
+            self.call_from_thread(self.show_error, str(e))
 
     def action_toggle_mode(self) -> None:
         cfg = load_config()
         cfg["mode"] = "plan" if cfg.get("mode") == "build" else "build"
         save_config(cfg)
-        self.query_one("#log", RichLog).write(f"→ [bold]{cfg['mode']}[/] mode")
-        self.refresh_chrome()
+        self.query_one("#log", RichLog).write(f"→ {cfg['mode']}")
+        self.refresh_status()
 
 
 def run_tui() -> None:
