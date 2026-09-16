@@ -1,8 +1,6 @@
 # Caliber Agent
 
-**Full-screen multi-model coding agent** (OpenCode-style TUI + specialist routing).
-
-When you run `caliberagent`, a real terminal UI opens — chat panel, sidebar, status bar, input — not a plain prompt.
+Multi-model coding agent for the terminal. Uses OpenRouter and routes each job to the best specialist model.
 
 ## Install
 
@@ -14,34 +12,48 @@ curl -fsSL https://raw.githubusercontent.com/webscout9-png/caliber-agent/main/sc
 caliberagent
 ```
 
+Then set your key:
+
+```
+/provider sk-or-...
+```
+
+## Commands
+
+| Command | What it does |
+|---------|----------------|
+| `/provider KEY` | Save OpenRouter API key |
+| `/plan` | Read-only mode |
+| `/build` | Full tools (edit, bash, …) |
+| `/effort LEVEL` | `low` · `medium` · `high` · `max` · `ultra` |
+| `/model MODE` | `best` or `custom` |
+| `/models` | List OpenRouter catalog |
+| `/init` | Create `AGENTS.md` for this project |
+| `/status` | Show config |
+| `/exit` | Quit |
+
+## Modes
+
+- **Plan** — analyze only (no writes / bash)
+- **Build** — full agent loop with tools
+
+## Specialist routing
+
+Tasks are classified (coding, planning, reasoning, search, writing, critique) and each uses a different model when `model_mode=best`.
+
 ## UI
 
-```
-┌─ CALIBER v0.7  mode:build  effort:medium  tokens:0 ─────────────┐
-│ Chat messages (markdown)              │ Session                 │
-│                                       │ mode / effort / models  │
-│                                       │ Last trace              │
-│                                       │ Commands                │
-├───────────────────────────────────────┴─────────────────────────┤
-│ Ask Caliber…  (/ for commands)                                  │
-└─────────────────────────────────────────────────────────────────┘
+Default is the classic prompt (always works):
+
+```bash
+caliberagent
 ```
 
-- **Ctrl+P** — toggle Plan / Build  
-- **Ctrl+C** — quit  
-- **F1** — help  
-- Slash commands: `/provider`, `/plan`, `/build`, `/effort`, `/init`, `/models`, …
+Optional full-screen TUI:
 
-## Why Caliber
-
-| Feature | Caliber |
-|---------|--------|
-| Full-screen TUI | Yes (Textual) |
-| Plan / Build modes | Yes |
-| File tools + bash | Yes |
-| `/init` → AGENTS.md | Yes |
-| **Best model per specialist** | **Core** |
-| Live OpenRouter catalog (400+) | Yes |
+```bash
+caliberagent --tui
+```
 
 ## License
 

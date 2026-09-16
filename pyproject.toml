@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "caliber-agent"
-version = "0.7.2"
+version = "0.8.0"
 description = "Caliber Agent — multi-model OpenRouter coding agent"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,8 +14,6 @@ dependencies = [
     "rich>=13.7.0",
     "typer>=0.12.0",
     "httpx>=0.27.0",
-    "pydantic>=2.0",
-    "python-dotenv>=1.0",
     "prompt-toolkit>=3.0",
     "textual>=0.80.0",
 ]
