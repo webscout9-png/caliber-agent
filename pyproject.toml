@@ -4,13 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "caliber-agent"
-version = "0.1.0"
-description = "Caliber Agent — multi-model OpenRouter terminal agent that routes tasks to the best AI models"
+version = "0.7.0"
+description = "Caliber Agent — multi-model OpenRouter coding agent with full TUI"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [{name = "Caliber"}]
-keywords = ["ai", "agent", "openrouter", "terminal", "llm"]
+keywords = ["ai", "agent", "openrouter", "terminal", "llm", "tui"]
 dependencies = [
     "openai>=1.40.0",
     "rich>=13.7.0",
@@ -19,6 +19,7 @@ dependencies = [
     "pydantic>=2.0",
     "python-dotenv>=1.0",
     "prompt-toolkit>=3.0",
+    "textual>=0.80.0",
 ]
 
 [project.scripts]
